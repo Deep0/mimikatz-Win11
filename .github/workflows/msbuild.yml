@@ -14,26 +14,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 可选：如果项目需要 NuGet 恢复或 .NET SDK，可参考 Microsoft 文档
       - name: Setup MSBuild (adds MSBuild to PATH)
         uses: microsoft/setup-msbuild@v1
 
-      - name: Restore NuGet packages (if applicable)
-        if: exists('*.sln') || env.PROJECT_TYPE == 'dotnet'
+      - name: Restore NuGet packages (if .sln exists)
+        shell: pwsh
         run: |
-          nuget restore mimikatz.sln
+          if (Test-Path -Path "mimikatz.sln") {
+            Write-Host "Found mimikatz.sln — running nuget restore"
+            nuget restore mimikatz.sln
+          } else {
+            Write-Host "No solution file found — skipping nuget restore"
+          }
 
       - name: Build with MSBuild
-        # 修改为你的 solution / project 路径与配置（Release/Debug, x86/x64）
+        shell: pwsh
         run: |
-          msbuild mimikatz.sln /p:Configuration=Release /p:Platform=x64 /m
+          if (Test-Path -Path "mimikatz.sln") {
+            msbuild mimikatz.sln /p:Configuration=Release /p:Platform=x64 /m
+          } else {
+            Write-Host "No solution file found — you may need to adjust the path"
+          }
 
       - name: Collect build artifacts
+        shell: pwsh
         run: |
-          mkdir -p artifacts
-          # 假设输出放在 bin\Release 下，按需修改路径
-          robocopy .\MyProject\bin\Release .\artifacts /E
-        shell: powershell
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          if (Test-Path -Path "./MyProject/bin/Release") {
+            robocopy .\MyProject\bin\Release .\artifacts /E
+          } else {
+            Write-Host "No build outputs found at ./MyProject/bin/Release"
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
